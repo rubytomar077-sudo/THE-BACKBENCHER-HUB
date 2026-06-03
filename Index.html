@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Backbencher HUB </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --brand-black: #1a1a1a;
+            --soft-dark: #2d2d2d;
+        }
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            overflow: hidden;
+        }
+        .bg-brand-black { background-color: var(--brand-black); }
+        .text-brand-black { color: var(--brand-black); }
+        .border-brand-black { border-color: var(--brand-black); }
+        
+        #chat-frame {
+            width: 100%;
+            height: calc(100% - 60px);
+            border: none;
+        }
+        
+        .transition-page {
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .safe-area-inset {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- Screen 1: Login / Home -->
+    <div id="home-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white p-6 transition-page">
+        <div class="w-full max-w-md space-y-8 text-center">
+            <div class="mb-8">
+                <div class="mx-auto w-20 h-20 bg-brand-black rounded-2xl flex items-center justify-center shadow-lg mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                </div>
+                <h1 class="text-4xl font-bold text-gray-800">The Backbencher HUB</h1>
+                <p class="text-gray-500 mt-2">Create your space. Start chatting.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-left text-sm font-medium text-gray-700 mb-1">Nickname</label>
+                    <input type="text" id="nickname" placeholder="Enter your ID..." 
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-black focus:outline-none transition-all">
+                </div>
+                
+                <div>
+                    <label class="block text-left text-sm font-medium text-gray-700 mb-1">Channel Space</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">?</span>
+                        <input type="text" id="channel" placeholder="e.g. 1chat, 2chat, tech" 
+                            class="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-black focus:outline-none transition-all">
+                    </div>
+                </div>
+
+                <button onclick="joinChat()" 
+                    class="w-full bg-brand-black text-white font-bold py-4 rounded-xl shadow-md active:scale-95 transition-transform">
+                    Enter Chat Space
+                </button>
+            </div>
+
+            <div class="pt-8">
+                <p class="text-xs text-gray-400">MADE BY HIMANK PARIHAR</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 2: Chat Interface -->
+    <div id="chat-screen" class="hidden fixed inset-0 flex flex-col bg-white transition-page">
+        <!-- Header -->
+        <header class="h-[60px] bg-white border-b border-gray-100 flex items-center justify-between px-4">
+            <button onclick="goHome()" class="p-2 hover:bg-gray-100 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            </button>
+            <div class="text-center">
+                <h2 id="display-channel" class="font-bold text-gray-800 leading-tight">Channel</h2>
+                <span id="display-user" class="text-[10px] text-brand-black font-bold uppercase tracking-wider">Online</span>
+            </div>
+            <div class="w-10"></div> <!-- Spacer -->
+        </header>
+
+        <!-- iframe will be injected here -->
+        <div id="iframe-container" class="flex-1 bg-gray-50 overflow-hidden">
+            <div id="loading-spinner" class="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
+                <div class="w-10 h-10 border-4 border-brand-black border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p class="text-gray-500 text-sm">Connecting to secure space...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback UI (Custom Dialog) -->
+    <div id="error-dialog" class="hidden fixed inset-0 z- flex items-center justify-center bg-black bg-opacity-50 p-6">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-2xl">
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Notice</h3>
+            <p id="error-message" class="text-gray-600 mb-6"></p>
+            <button onclick="closeError()" class="w-full py-3 bg-brand-black text-white font-bold rounded-xl">OK</button>
+        </div>
+    </div>
+
+    <script>
+        const homeScreen = document.getElementById('home-screen');
+        const chatScreen = document.getElementById('chat-screen');
+        const nicknameInput = document.getElementById('nickname');
+        const channelInput = document.getElementById('channel');
+        const iframeContainer = document.getElementById('iframe-container');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        // Load saved data
+        window.onload = () => {
+            const savedNick = localStorage.getItem('backbencher_nick');
+            const savedChan = localStorage.getItem('backbencher_chan');
+            if(savedNick) nicknameInput.value = savedNick;
+            if(savedChan) channelInput.value = savedChan;
+        };
+
+        function showError(msg) {
+            document.getElementById('error-message').innerText = msg;
+            document.getElementById('error-dialog').classList.remove('hidden');
+        }
+
+        function closeError() {
+            document.getElementById('error-dialog').classList.add('hidden');
+        }
+
+        function joinChat() {
+            const nick = nicknameInput.value.trim().replace(/[^\w]/g, '');
+            let chan = channelInput.value.trim().toLowerCase();
+
+            if (!nick) {
+                showError("Please enter a Nickname (ID)");
+                return;
+            }
+            if (!chan) {
+                showError("Please enter a Channel Space (e.g. Backbencher)");
+                return;
+            }
+
+            // Save for convenience
+            localStorage.setItem('backbencher_nick', nick);
+            localStorage.setItem('backbencher_chan', chan);
+
+            // Update UI
+            document.getElementById('display-channel').innerText = "?" + chan;
+            document.getElementById('display-user').innerText = nick;
+
+            // Prepare iframe
+            loadingSpinner.classList.remove('hidden');
+            const chatUrl = `https://hack.chat/?${chan}`;
+            
+            // Note: Hack.chat uses prompt for nickname if not provided in URL, 
+            // but we can pass it via hash or let user type it there.
+            // For hack.chat specifically, it usually asks for nick upon arrival.
+            
+            iframeContainer.innerHTML = `
+                <div id="loading-spinner" class="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
+                    <div class="w-10 h-10 border-4 border-brand-black border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p class="text-gray-500 text-sm">Connecting to secure space...</p>
+                </div>
+                <iframe 
+                    id="chat-frame" 
+                    src="${chatUrl}" 
+                    onload="hideSpinner()"
+                    allow="clipboard-read; clipboard-write"
+                ></iframe>
+            `;
+
+            // Switch screens
+            homeScreen.classList.add('translate-x-[-100%]');
+            setTimeout(() => {
+                homeScreen.classList.add('hidden');
+                chatScreen.classList.remove('hidden');
+            }, 300);
+        }
+
+        function hideSpinner() {
+            document.getElementById('loading-spinner').classList.add('hidden');
+        }
+
+        function goHome() {
+            chatScreen.classList.add('hidden');
+            homeScreen.classList.remove('hidden');
+            setTimeout(() => {
+                homeScreen.classList.remove('translate-x-[-100%]');
+            }, 10);
+            // Clear iframe to save resources
+            iframeContainer.innerHTML = '';
+        }
+
+        // Handle Enter key for login
+        [nicknameInput, channelInput].forEach(el => {
+            el.addEventListener('keypress', (e) => {
+                if(e.key === 'Enter') joinChat();
+            });
+        });
+    </script>
+</body>
+</html>
